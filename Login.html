@@ -1,0 +1,100 @@
+<html>
+
+<head>
+    <link href="https://fonts.googleapis.com/css?family=Fira+Sans&display=swap" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+</head>
+
+<body>
+    <div class="hero_image">
+        <div class="hero_block"></div>
+        <div id="firebaseui-auth-container"></div>
+        <div id="loader">Loading...</div>
+
+        <script src="https://www.gstatic.com/firebasejs/7.2.2/firebase-app.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/7.2.2/firebase-auth.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/7.2.2/firebase-firestore.js"></script>
+        <script src="https://cdn.firebase.com/libs/firebaseui/3.5.2/firebaseui.js"></script>
+        <script src="js/firebase_setup.js"></script>
+        <link type="text/css" rel="stylesheet" href="https://cdn.firebase.com/libs/firebaseui/3.5.2/firebaseui.css" />
+
+        <script>
+            // Initialize the FirebaseUI Widget using Firebase.
+            var ui = new firebaseui.auth.AuthUI(firebase.auth());
+            firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION)
+                .then(function () {
+                    // Existing and future Auth states are now persisted in the current
+                    // session only. Closing the window would clear any existing state even
+                    // if a user forgets to sign out.
+                    // ...
+                    // New sign-in will be persisted with session persistence.
+                    return firebase.auth().signInWithEmailAndPassword(email, password);
+                })
+                .catch(function (error) {
+                    // Handle Errors here.
+                    var errorCode = error.code;
+                    var errorMessage = error.message;
+                });
+            var uiConfig = {
+                callbacks: {
+                    signInSuccessWithAuthResult: function (authResult, redirectUrl) {
+                        var user = authResult.user;
+                        if (authResult.additionalUserInfo.isNewUser) {
+                            db.collection("users").doc(user.uid).set({
+                                firstName: user.displayName,
+                                email: user.email,
+                            }, { merge: true })
+                                .then(() => {
+                                    console.log("new user added to firestore");
+                                    localStorage.setItem('userName', user.displayName);
+                                    localStorage.setItem('userEmail', user.email);
+                                    localStorage.setItem('userID', user.uid);
+                                    window.location.assign('home.html');
+                                })
+                                .catch(function (error) {
+                                    console.log("Error happened " + error);
+                                });
+                        }
+                        else // an existing user
+                        {
+                            localStorage.setItem('userName', user.displayName);
+                            localStorage.setItem('userEmail', user.email);
+                            localStorage.setItem('userID', user.uid);
+                            // we could store current user info to localstorage here
+                            return true;
+                        }
+                        return false //By using false, signInSuccessUrl won't be used when there is a new user
+                    },
+                    uiShown: function () {
+                        // The widget is rendered.
+                        // Hide the loader.
+                        document.getElementById('loader').style.display = 'none';
+                    }
+                },
+                // Will use popup for IDP Providers sign-in flow instead of the default, redirect.
+                signInFlow: 'popup',
+                signInSuccessUrl: 'home.html',
+                signInOptions: [
+                    firebase.auth.EmailAuthProvider.PROVIDER_ID,
+                ],
+                // Terms of service url.
+                tosUrl: '<your-tos-url>',
+                // Privacy policy url.
+                privacyPolicyUrl: '<your-privacy-policy-url>'
+            };
+
+            // The start method will wait until the DOM is loaded.
+            ui.start('#firebaseui-auth-container', uiConfig);
+            var user = firebase.auth().currentUser;
+            var name, email, photoUrl, uid, emailVerified;
+
+            firebase.auth().signOut().then(function () {
+                console.log('Signed Out');
+            }, function (error) {
+                console.error('Sign Out Error', error);
+            });
+        </script>
+    </div>
+</body>
+
+</html>
